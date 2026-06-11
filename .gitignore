@@ -13,3 +13,5 @@ Thumbs.db
 logs/
 .vscode/
 data/
+
+cache/
