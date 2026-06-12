@@ -4,7 +4,6 @@ import json
 import logging
 from pathlib import Path
 import spotipy
-from spotipy.oauth2 import spotifyclientcredentials
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -49,3 +48,26 @@ def retry(fn,*args,**kwargs):
             else:
                 raise
             raise RuntimeError(f"Failed after {max_retries} retries")
+
+class Spotify_Enricher:
+    def __init__(self):
+        client_id = os.getenv("SPOTIFY_CLIENT_ID")
+        client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            raise EnvironmentError(
+                "Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET. "
+                "Copy .env.example to .env and fill in your credentials."
+            )
+        
+        client_credentials_manager = spotipy.oauth2.SpotifyClientCredentials(client_id,client_secret) 
+        self.sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+
+        self.track_cache = load_cache(tracks_cache_files)
+        self.features_cache = load_cache (features_cache_files)
+        self.artists_cache = load_cache(artists_cache_files)
+        
+        logger.info(
+            f"Cache loaded: {len(self.track_cache)} tracks | "
+            f"{len(self.features_cache)} audio features | "
+            f"{len(self.artist_cache)} artists"
+        )
