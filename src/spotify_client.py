@@ -16,7 +16,7 @@ tracks_cache_files = cache_dir / "tracks.json"
 features_cache_files = cache_dir / "features.json"
 artists_cache_files = cache_dir / "artists.json"
 
-batch_size = 5
+batch_size = 50
 sleep = .5
 max_retries = 5
 retry_backoff = 2
@@ -65,9 +65,21 @@ class Spotify_Enricher:
         self.track_cache = load_cache(tracks_cache_files)
         self.features_cache = load_cache (features_cache_files)
         self.artists_cache = load_cache(artists_cache_files)
-        
+
         logger.info(
             f"Cache loaded: {len(self.track_cache)} tracks | "
             f"{len(self.features_cache)} audio features | "
             f"{len(self.artist_cache)} artists"
         )
+    
+    def fetch_tracks(self:self,track_ids:list[str]) -> dict[str,dict]:
+        """
+        Fetch track metadata for a list of Spotify track IDs.
+        Returns dict of {track_id: track_data}.
+        """
+        missing = [tid for tid in track_ids if tid not in self.track_cache]
+        logger.info(f"Tracks: {len(track_ids)} requested | {len(missing)} not cached")
+        for i in range(0,len(missing),batch_size):
+            batch = missing[i,i+batch_size]
+            logger.info (f"Fetching tracks batch {i // BATCH_SIZE + 1} ({len(batch)} tracks)…")
+            retry(self.sp.tracks,batch)

@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import spotipy
 from dotenv import load_dotenv
+import pprint
 
 load_dotenv()
 client_id = os.getenv("SPOTIFY_CLIENT_ID")
@@ -14,9 +15,34 @@ client_credentials_manager = spotipy.oauth2.SpotifyClientCredentials(client_id,c
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
 
+track_id = "11dFghVXANMlKmJXsNCbNl"
+track = sp.track(track_id)
 
-urn = 'spotify:album:5yTx83u3qerZF7GRJu7eFk'
-# retrieves album information in json format
-album = sp.album(urn)
-# formatted print of the result
-print(album)
+def extract_track(t: dict) -> dict:
+    artists = t.get("artists", [])
+    album   = t.get("album", {})
+    return {
+        "track_id":           t["id"],
+        "track_name":         t.get("name"),
+        "duration_ms":        t.get("duration_ms"),
+        "popularity":         t.get("popularity"),
+        "explicit":           t.get("explicit"),
+        "track_number":       t.get("track_number"),
+        "disc_number":        t.get("disc_number"),
+        # Primary artist
+        "artist_id":          artists[0]["id"] if artists else None,
+        "artist_name":        artists[0]["name"] if artists else None,
+        # All artists (for collaborations)
+        "all_artist_ids":     [a["id"] for a in artists],
+        "all_artist_names":   [a["name"] for a in artists],
+        # Album
+        "album_id":           album.get("id"),
+        "album_name":         album.get("name"),
+        "album_release_date": album.get("release_date"),
+        "album_type":         album.get("album_type"),     
+        "album_total_tracks": album.get("total_tracks"),
+    }
+
+f = extract_track(track)
+
+print(f)
