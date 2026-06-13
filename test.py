@@ -16,8 +16,11 @@ sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
 
 track_id = "11dFghVXANMlKmJXsNCbNl"
-track = sp.track(track_id)
+tracks_ids = "7ouMYWpwJ422jRcDASZB7P,4VqPOruhp5EdPBeR92t6lQ,2takcwOaAZWiXQijPHIx7B".split(",")
+track = sp.audio_features (tracks_ids)
+pprint.pprint(track)
 
+"""
 def extract_track(t: dict) -> dict:
     artists = t.get("artists", [])
     album   = t.get("album", {})
@@ -44,5 +47,8 @@ def extract_track(t: dict) -> dict:
     }
 
 f = extract_track(track)
-
 print(f)
+"""
+
+
+
