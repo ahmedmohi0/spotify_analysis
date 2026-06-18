@@ -6,10 +6,9 @@ from pathlib import Path
 import spotipy
 from dotenv import load_dotenv
 from concurrent.futures import as_completed,ThreadPoolExecutor
-load_dotenv()
 import threading
 logger = logging.getLogger(__name__)
-
+load_dotenv()
 
 CACHE_DIR = Path("cache/spotify")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -73,7 +72,8 @@ class SpotifyEnricher:
                 "Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET.\n"
                 "Copy .env.example to .env and fill in your credentials."
             )
-
+        #each thread becomes a container other threads can't see
+        self.local = threading.local()
         # Store credentials — each thread builds its own client
         self._credentials = (client_id, client_secret)
 
@@ -86,9 +86,13 @@ class SpotifyEnricher:
             f"Spotify cache: {len(self.track_cache)} tracks | "
             f"{len(self.artist_cache)} artists"
         )
+
     def make_client(self) -> spotipy.Spotify:
-        client_id,client_secret = self._credentials
-        return spotipy.Spotify(auth_manager = spotipy.oauth2.SpotifyClientCredentials(client_id = client_id,client_secret = client_secret))
+        """creating one client for each thread """
+        if not hasattr(self.local,"client"):
+            client_id,client_secret = self._credentials
+            self.local.client = spotipy.Spotify(auth_manager = spotipy.oauth2.SpotifyClientCredentials(client_id = client_id,client_secret = client_secret))
+            return self.local.client
 
     def fetch_tracks(self,track_ids:list [str])->dict[str,dict]:
         with self._track_lock:
