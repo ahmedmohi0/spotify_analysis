@@ -52,6 +52,13 @@ class LastFmEnricher:
 
         self.cache = _load_cache(CACHE_FILE)
 
+        cached_found = sum(1 for v in self.cache.values() if v is not None)
+        cached_null  = sum(1 for v in self.cache.values() if v is None)
+        logger.info(
+            f"Lastfm: {cached_found} found | "
+            f"{cached_null} nulls | "
+        )
+
     
 
     def empty() -> dict:
