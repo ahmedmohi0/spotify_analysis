@@ -96,7 +96,7 @@ class SpotifyEnricher:
         if not hasattr(self.local,"client"):
             client_id,client_secret = self._credentials
             self.local.client = spotipy.Spotify(auth_manager = spotipy.oauth2.SpotifyClientCredentials(client_id = client_id,client_secret = client_secret))
-            return self.local.client
+        return self.local.client
 
     def fetch_tracks(self,track_ids:list [str])->dict[str,dict]:
         with self._track_lock:

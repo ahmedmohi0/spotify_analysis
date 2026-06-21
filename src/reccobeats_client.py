@@ -13,11 +13,11 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_FILE     = CACHE_DIR / "audio_features.json"
 
 BASE_URL       = "https://api.reccobeats.com/v1/audio-features"
-SLEEP_BETWEEN  = 2.0   
-CACHE_SAVE_EVERY = 50  
+SLEEP_BETWEEN  = .5 
+CACHE_SAVE_EVERY = 10  
 MAX_RETRIES    = 4
 RETRY_BACKOFF  = 3     
-
+BATCH_SIZE = 40
 def _load_cache(path: Path) -> dict:
     if path.exists():
         with open(path, encoding="utf-8") as f:
@@ -86,9 +86,9 @@ class ReccoBeatsEnricher:
         for batch in batches:
             results = self._fetch_batch(batch)
 
-            
+            # Store results — None for any ID not returned by the API
             for tid in batch:
-                self.cache[tid] = results.get(tid)  
+                self.cache[tid] = results.get(tid)  # None if missing from response
             fetched_count += len(batch)
             batch_count   += 1
 
@@ -101,6 +101,7 @@ class ReccoBeatsEnricher:
                 )
 
             time.sleep(SLEEP_BETWEEN)
+
 
         _save_cache(CACHE_FILE, self.cache)
         found = sum(1 for tid in missing if self.cache.get(tid) is not None)
@@ -117,14 +118,14 @@ class ReccoBeatsEnricher:
         Fetch a batch of up to BATCH_SIZE tracks from ReccoBeats.
         Passes Spotify IDs as comma-separated query param.
         Returns dict of {track_id: features_dict} for tracks that had data.
-        Missing tracks are absent from the returned dict.
+        Missing tracks are simply absent from the returned dict.
         """
         for attempt in range(MAX_RETRIES):
             try:
                 resp = self.session.get(
                     BASE_URL,
                     params={"ids": ",".join(track_ids)},
-                    timeout=30,   
+                    timeout=30,   # batch requests need more time than single
                 )
 
                 if resp.status_code == 200:
@@ -164,8 +165,7 @@ class ReccoBeatsEnricher:
 
         logger.warning(f"ReccoBeats gave up after {MAX_RETRIES} attempts on batch")
         return {}
-
-
+    
     def save_cache(self):
         _save_cache(CACHE_FILE, self.cache)
 
