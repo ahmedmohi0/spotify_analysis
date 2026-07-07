@@ -22,7 +22,7 @@ TRACK_CACHE_FILE    = CACHE_DIR / "tracks.json"
 ARTIST_CACHE_FILE   = CACHE_DIR / "artists.json"
 
 THREADS = 3
-SLEEP_BETWEEN  = 1.5
+SLEEP_BETWEEN  = 2
 MAX_RETRIES  = 5
 RETRY_BACKOFF = 2
 CACHE_SAVE_EVERY_N = 100
@@ -139,53 +139,7 @@ class SpotifyEnricher:
             save_cache(TRACK_CACHE_FILE,self.track_cache)
         logger.info(f"Tracks done: {fetched_count} fetched")
         return {tid: self.track_cache[tid] for tid in track_ids if tid in self.track_cache}   
-
-    def fetch_artists(self,artist_ids:list[str]) -> dict[str:dict]:
-        """
-        Fetch artist metadata for a list of artist IDs.
-        Uses THREADS workers, each calling GET /artist/{id}.
-        Returns dict of {artist_id: artist_data}.
-        """
-         
-        with self._artist_lock:
-            missing = [aid for aid in artist_ids if aid not in self.artist_cache] 
-        logger.info(
-            f"Artists: {len(artist_ids)} total | "
-            f"{len(artist_ids) - len(missing)} cached | "
-            f"{len(missing)} to fetch | "
-            f"{THREADS} threads"
-        )
-        if not missing:
-            return{aid:self.artist_cache[aid] for aid in artist_ids if aid in self.artist_cache}
-        
-        fetched_count = 0
-        def fetch_one(artist_id:str) -> tuple[str, dict | None]:
-            sp = self.make_client()
-            try:
-                result = retry(sp.artist,artist_id)
-                time.sleep(SLEEP_BETWEEN)
-                return artist_id , extract_artist(result)
-            except spotipy.exceptions.SpotifyException as e:
-                if e.http_status == 404:
-                    logger.debug(f"artist not found (404): {artist_id}")
-                    return artist_id, None
-            
-                raise
-        with ThreadPoolExecutor(max_workers= THREADS) as executor:
-            futures = {executor.submit(fetch_one,aid):aid for aid in missing}
-            for future in as_completed(futures):
-                artist_id,data = future.result()
-                fetched_count += 1
-                if data:
-                    with self._artist_lock:
-                        self.artist_cache[artist_id] = data
-                        if fetched_count % CACHE_SAVE_EVERY_N == 0:
-                                save_cache (ARTIST_CACHE_FILE, self.artist_cache)
-                                logger.info(f"artists progress: {fetched_count}/{len(missing)}")
-        with self._artist_lock:
-            save_cache(ARTIST_CACHE_FILE,self.artist_cache)
-        logger.info(f"artists done: {fetched_count} fetched")
-        return {aid: self.artist_cache[aid] for aid in artist_ids if aid in self.artist_cache} 
+ 
 
     def save_all_caches(self):
         with self._track_lock:
@@ -219,13 +173,4 @@ def extract_track(t: dict) -> dict:
         "album_release_date": album.get("release_date"),
         "album_type":         album.get("album_type"),     
         "album_total_tracks": album.get("total_tracks"),
-    }
-
-def extract_artist(a: dict) -> dict:
-    return {
-        "artist_id":   a["id"],
-        "artist_name": a.get("name"),
-        "genres":      a.get("genres", []),
-        "popularity":  a.get("popularity"),
-        "followers":   a.get("followers", {}).get("total"),
     }

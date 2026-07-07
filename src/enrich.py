@@ -119,19 +119,12 @@ def run_enrichment(
 
     # ---- Pass 1: Spotify ---- #
     logger.info("=" * 60)
-    logger.info("PASS 1 — Spotify API (track + artist metadata)")
+    logger.info("PASS 1 — Spotify API (track)")
     logger.info("=" * 60)
 
     spotify    = SpotifyEnricher()
     track_meta = spotify.fetch_tracks(track_ids)
 
-    artist_ids = list({
-        meta["artist_id"]
-        for meta in track_meta.values()
-        if meta.get("artist_id")
-    })
-    logger.info(f"{len(artist_ids)} unique artists to fetch…")
-    artist_meta = spotify.fetch_artists(artist_ids)
     spotify.save_all_caches()
     logger.info("Pass 1 complete.\n")
 
@@ -172,7 +165,6 @@ def run_enrichment(
     for raw in raw_tracks:
         tid       = raw["track_id"]
         sp_track  = track_meta.get(tid, {})
-        sp_artist = artist_meta.get(sp_track.get("artist_id", ""), {})
         rb        = rb_results.get(tid) or {}
         lfm       = lfm_results.get(tid) or {}
 
@@ -182,7 +174,7 @@ def run_enrichment(
             "track_uri":          raw["uri"],
 
             # --- Track metadata (Spotify) ---
-            "track_name":         sp_track.get("track_name")      or raw["track_name"],
+            "track_name":         sp_track.get("track_name") ,
             "duration_ms":        sp_track.get("duration_ms"),
             "popularity":         sp_track.get("popularity"),
             "explicit":           sp_track.get("explicit"),
@@ -191,15 +183,12 @@ def run_enrichment(
 
             # --- Artist (Spotify) ---
             "artist_id":          sp_track.get("artist_id"),
-            "artist_name":        sp_track.get("artist_name")     or raw["artist_name"],
+            "artist_name":        sp_track.get("artist_name")     ,
             "all_artist_names":   sp_track.get("all_artist_names", []),
-            "artist_popularity":  sp_artist.get("popularity"),
-            "artist_followers":   sp_artist.get("followers"),
-            "spotify_genres":     sp_artist.get("genres", []),
 
             # --- Album (Spotify) ---
             "album_id":           sp_track.get("album_id"),
-            "album_name":         sp_track.get("album_name")      or raw["album_name"],
+            "album_name":         sp_track.get("album_name"),
             "album_release_date": sp_track.get("album_release_date"),
             "album_type":         sp_track.get("album_type"),
             "album_total_tracks": sp_track.get("album_total_tracks"),
@@ -225,7 +214,7 @@ def run_enrichment(
     return enriched
 def main():
     parser = argparse.ArgumentParser(
-        description="Enrich Spotify listening history with track, artist, audio feature, and genre data"
+        description="Enrich Spotify listening history with track, audio feature, and genre data"
     )
     parser.add_argument(
         "--files", nargs="+", required=True,
