@@ -1,7 +1,5 @@
 # THis file will serve as the central logging configuration for the project. 
-# The setup_logging() function configures a logger with both console and file handlers,
-# while get_logger() provides a convenient way for other modules to obtain a logger instance . 
-# This design ensures consistent logging across the entire codebase while keeping third-party library logs separate and manageable.
+
 import logging
 import logging.handlers
 from pathlib import Path
@@ -34,14 +32,14 @@ def setup_logging(
 
     logger.setLevel(logging.DEBUG)
 
-    # ── Console handler ──────────────────────────────────────────────────────
+    # ── Console handler ───────────────────
     console_handler = logging.StreamHandler()
     console_handler.setLevel(console_level)
     console_handler.setFormatter(
         logging.Formatter(_FMT_CONSOLE, datefmt=_DATEFMT_CONSOLE)
     )
 
-    # ── File handler — rotates at 5 MB, keeps 3 backups ─────────────────────
+    # ── File handler  ─────────────────────
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
     file_handler = logging.handlers.RotatingFileHandler(
         filename    = _LOG_FILE,
@@ -57,7 +55,7 @@ def setup_logging(
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
 
-    # ── Silence noisy third-party loggers ────────────────────────────────────
+    # ── Silencer  ────────────────────────
     if silence_libs:
         for lib in ("spotipy", "urllib3", "requests","sqlalchemy","psycopg2"):
             logging.getLogger(lib).setLevel(logging.WARNING)
