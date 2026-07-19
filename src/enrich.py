@@ -207,8 +207,8 @@ def run_enrichment(
             "mode":               rb.get("mode"),
 
             # --- Genre tags (Last.fm) ---
-            "lastfm_track_tags":  lfm.get("lastfm_track_tags", []),
-            "lastfm_artist_tags": lfm.get("lastfm_artist_tags", []),
+            "track_tags":  lfm.get("track_tags", []),
+            "artist_tags": lfm.get("artist_tags", []),
         })
 
     return enriched

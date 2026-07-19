@@ -1,9 +1,10 @@
 
 from contextlib import contextmanager
 import psycopg
-from config import DB_CONFIG
-from logger import get_logger
+from src.config import DB_CONFIG
+from src.logger import get_logger, setup_logging
  
+setup_logging()
 logger = get_logger(__name__)
  
  
