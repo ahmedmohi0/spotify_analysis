@@ -23,12 +23,12 @@ files, only uncached tracks are fetched. You can skip any pass with a flag.
 Output: output/enriched_tracks.json and output/enriched_tracks.csv
 
 Usage:
-  python enrich.py --files data/*.json
-  python enrich.py --files data/*.json --skip-reccobeats --skip-lastfm   # Spotify only
-  python enrich.py --files data/*.json --skip-lastfm                      # Spotify + ReccoBeats
-  python enrich.py --files data/*.json --retry-nulls                      # retry ReccoBeats nulls
-  python enrich.py --files data/*.json --limit 50                         # test run
-  
+  python -m src.enrich --files (Get-Item "data\raw\*.json")
+  python -m src.enrich --files (Get-Item "data\raw\*.json") --skip-reccobeats --skip-lastfm  # Spotify only
+  python -m src.enrich --files (Get-Item "data\raw\*.json") --skip-lastfm                      # Spotify + ReccoBeats
+  python -m src.enrich --files (Get-Item "data\raw\*.json") --retry-nulls                      # retry ReccoBeats nulls
+  python -m src.enrich --files (Get-Item "data\raw\*.json") --limit 50                         # test run
+ 
 """
 
 
@@ -141,7 +141,9 @@ def run_enrichment(
         rb.save_cache()
         logger.info("Pass 1.5 complete.\n")
     else:
-        logger.info("ReccoBeats skipped (--skip-reccobeats)")
+        logger.info("ReccoBeats skipped — using cached values only")
+        rb = ReccoBeatsEnricher()
+        rb_results = {tid: rb.cache.get(tid) for tid in track_ids}
 
     # ---- Pass 2: Last.fm ---- #
     lfm_results = {}
@@ -157,8 +159,12 @@ def run_enrichment(
         lfm.save_cache()
         logger.info("Pass 2 complete.\n")
     else:
-        logger.info("Last.fm skipped (--skip-lastfm)")
-
+        logger.info("Last.fm skipped — using cached values only")
+        lfm = LastFmEnricher()
+        lfm_results = {}
+        for raw in raw_tracks:
+            key = f"{raw.get('artist_name','').lower()}||{raw.get('track_name','').lower()}"
+            lfm_results[raw["track_id"]] = lfm.cache.get(key, {})
     logger.info("Merging all enrichment data…")
     enriched = []
 
@@ -207,8 +213,8 @@ def run_enrichment(
             "mode":               rb.get("mode"),
 
             # --- Genre tags (Last.fm) ---
-            "track_tags":  lfm.get("track_tags", []),
-            "artist_tags": lfm.get("artist_tags", []),
+            "track_tags":  lfm.get("lastfm_track_tags", []),
+            "artist_tags": lfm.get("lastfm_artist_tags", []),
         })
 
     return enriched
