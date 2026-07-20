@@ -56,13 +56,10 @@ class ReccoBeatsEnricher:
         Returns dict of {track_id: features_dict | None}.
         """
         if self.retry_nulls:
-            missing = [tid for tid in track_ids if tid not in self.cache]
+            missing = [tid for tid in track_ids if self.cache.get(tid) is None]
         else:
-            missing = [
-                tid for tid in track_ids
-                if tid not in self.cache and self.cache.get(tid) is not None
-            ]
-            already_null = [tid for tid in track_ids if self.cache.get(tid) is None]
+            missing = [tid for tid in track_ids if tid not in self.cache]
+            already_null = [tid for tid in track_ids if tid in self.cache and self.cache.get(tid) is None]
             if already_null:
                 logger.info(
                     f"  Skipping {len(already_null)} previously null tracks "
