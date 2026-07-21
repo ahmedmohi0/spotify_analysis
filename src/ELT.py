@@ -121,6 +121,22 @@ def cast_for_staging(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def load_to_staging(df: pd.DataFrame) -> None:
+    """
+    Bulk-inserts the cast dataframe into staging_listening_history
+    via DB.bulk_insert().
+    """
+    logger.info(f"Loading {len(df)} rows into staging_listening_history…")
+
+    # NaN -> None, so COPY writes real NULLs instead of the string "nan"
+    clean_df = df.astype(object).where(pd.notnull(df), None)
+    rows = list(clean_df.itertuples(index=False, name=None))
+
+    from src.DB import bulk_insert
+    bulk_insert("staging_listening_history", STAGING_COLUMNS, rows)
+
+    logger.info("Load to staging complete.")
+
 if __name__ == "__main__":
     test_files = [Path("data\\raw\\Streaming_History_Audio_2020.json")]  
     df = load_json_files(test_files)
