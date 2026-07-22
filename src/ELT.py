@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.config import RAW_DATA_DIR,RAW_JSON_DIR
-from src.DB import get_connection
+from src.DB import  run_schema
 from src.logger import setup_logging, get_logger
 
 setup_logging()
@@ -16,7 +16,7 @@ STAGING_COLUMNS = [
     "album_id", "album_name", "album_release_date", "album_type", "album_total_tracks",
     "danceability", "energy", "valence", "tempo", "loudness", "acousticness",
     "instrumentalness", "speechiness", "liveness", "key", "mode",
-    "lastfm_track_tags", "lastfm_artist_tags",
+    "track_tags", "artist_tags",
     "played_at", "ms_played", "shuffled", "skipped", "reason_start", "reason_end", "offline",
 ]
 
@@ -106,6 +106,14 @@ def cast_for_staging(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     df = df.rename(columns={"timestamp": "played_at"})
+    INT_COLUMNS = [
+    "duration_ms", "popularity", "track_number", "disc_number",
+    "album_total_tracks", "key", "mode"
+     ]
+    for col in INT_COLUMNS:
+        if col in df.columns:
+            df[col] = df[col].astype("Int64")
+
     if "track_name_enriched" in df.columns:
         df["track_name"] = df["track_name_enriched"]
         df.drop(columns=["track_name_enriched"], inplace=True)
@@ -138,7 +146,14 @@ def load_to_staging(df: pd.DataFrame) -> None:
     logger.info("Load to staging complete.")
 
 if __name__ == "__main__":
-    test_files = [Path("data\\raw\\Streaming_History_Audio_2020.json")]  
-    df = load_json_files(test_files)
-    print(df.shape)
-    print(df.head())
+    run_schema("sql/schema.sql")
+    test_files = [Path("data\\raw\\Streaming_History_Audio_2020.json")]
+    files =list (RAW_JSON_DIR.glob("*.json"))  
+    plays = load_json_files(files)
+   
+    enriched = load_enriched_tracks(RAW_DATA_DIR / "enriched_tracks.csv")
+    enriched = parse_list_columns(enriched, ["all_artist_names", "track_tags", "artist_tags"])
+    merged = merge_plays_with_enrichment(plays, enriched)
+    cast = cast_for_staging(merged)
+
+    load_to_staging(cast)
