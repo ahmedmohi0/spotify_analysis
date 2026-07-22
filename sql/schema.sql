@@ -1,6 +1,9 @@
 --Project: Spotify Listening History Analysis
 
 
+
+-- staging_listening_history: Staging table for listening history data
+
 DROP TABLE IF EXISTS staging_listening_history CASCADE;
 
 CREATE TABLE staging_listening_history (
