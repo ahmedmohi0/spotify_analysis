@@ -59,5 +59,87 @@ CREATE TABLE staging_listening_history (
 );
 
 
+drop table if exists dim_date cascade;
 
+create table dim_date
+(
+    date_key serial primary key,
+    full_date date not null,
+    calendar_year smallint not null,
+    calendar_month smallint not null,
+    calendar_day smallint not null,
+    month_name text not null,
+    weekday_name text not null
+);
 
+drop table if exists dim_artist cascade;
+create table dim_artist
+(
+    artist_id text primary key,
+    artist_name text not null,
+    artist_genres text
+);
+
+drop table if exists dim_album cascade;
+create table dim_album
+(
+    album_id text primary key,
+    album_name text not null,
+    album_release_year smallint not null,
+    album_type text not null,
+    album_total_tracks smallint not null
+);
+
+drop table if exists dim_track cascade;
+create table dim_track
+(
+    track_id text primary key,
+    track_uri text,
+    track_name text not null,
+    duration_ms integer not null,
+    popularity smallint not null,
+    explicit boolean not null,
+    track_number smallint not null,
+    disc_number smallint not null
+    track_genre text
+    danceability numeric(6,4),
+    energy numeric(6,4),
+    valence numeric(6,4),
+    tempo numeric(6,2),
+    loudness numeric(6,2),
+    acousticness numeric(6,4),
+    instrumentalness numeric(6,4),
+    speechiness numeric(6,4),
+    liveness numeric(6,4),
+    key smallint,
+    mode smallint,
+    artist_id text references dim_artist(artist_id),
+    album_id text references dim_album(album_id)
+    all_artist_names text[]
+);
+
+drop table if exists fact_listening_history cascade;
+create table fact_listening_history
+ (
+    listen_id        BIGSERIAL PRIMARY KEY,
+    date_key         INTEGER NOT NULL REFERENCES dim_date(date_key),
+    track_id         TEXT NOT NULL REFERENCES dim_track(track_id),
+    artist_id        TEXT REFERENCES dim_artist(artist_id),
+    album_id         TEXT REFERENCES dim_album(album_id),
+    played_at        TIMESTAMP NOT NULL,
+    ms_played        INTEGER,
+    shuffled         BOOLEAN,
+    skipped          BOOLEAN,
+    reason_start     TEXT,
+    reason_end       TEXT,
+    offline          BOOLEAN
+);
+ 
+CREATE INDEX idx_fact_date_key    ON fact_listening_history(date_key);
+CREATE INDEX idx_fact_track_id    ON fact_listening_history(track_id);
+CREATE INDEX idx_fact_artist_id   ON fact_listening_history(artist_id);
+CREATE INDEX idx_fact_played_at   ON fact_listening_history(played_at);
+ 
+CREATE INDEX idx_dim_track_genre  ON dim_track(track_genre);
+CREATE INDEX idx_dim_artist_genre ON dim_artist(artist_genre);
+ 
