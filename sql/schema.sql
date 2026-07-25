@@ -76,18 +76,17 @@ drop table if exists dim_artist cascade;
 create table dim_artist
 (
     artist_id text primary key,
-    artist_name text not null,
-    artist_genres text
+    artist_name text 
 );
 
 drop table if exists dim_album cascade;
 create table dim_album
 (
     album_id text primary key,
-    album_name text not null,
-    album_release_year smallint not null,
-    album_type text not null,
-    album_total_tracks smallint not null
+    album_name text ,
+    album_release_year smallint ,
+    album_type text ,
+    album_total_tracks smallint
 );
 
 drop table if exists dim_track cascade;
@@ -95,13 +94,13 @@ create table dim_track
 (
     track_id text primary key,
     track_uri text,
-    track_name text not null,
-    duration_ms integer not null,
-    popularity smallint not null,
-    explicit boolean not null,
-    track_number smallint not null,
-    disc_number smallint not null
-    track_genre text
+    track_name text ,
+    duration_ms integer,
+    popularity smallint ,
+    explicit boolean ,
+    track_number smallint ,
+    disc_number smallint ,
+    track_genre text,
     danceability numeric(6,4),
     energy numeric(6,4),
     valence numeric(6,4),
@@ -114,7 +113,7 @@ create table dim_track
     key smallint,
     mode smallint,
     artist_id text references dim_artist(artist_id),
-    album_id text references dim_album(album_id)
+    album_id text references dim_album(album_id),
     all_artist_names text[]
 );
 
@@ -141,5 +140,13 @@ CREATE INDEX idx_fact_artist_id   ON fact_listening_history(artist_id);
 CREATE INDEX idx_fact_played_at   ON fact_listening_history(played_at);
  
 CREATE INDEX idx_dim_track_genre  ON dim_track(track_genre);
-CREATE INDEX idx_dim_artist_genre ON dim_artist(artist_genre);
  
+ DROP TABLE IF EXISTS bridge_artist_genre CASCADE;
+ 
+CREATE TABLE bridge_artist_genre (
+    artist_id        TEXT NOT NULL REFERENCES dim_artist(artist_id),
+    genre            TEXT NOT NULL,
+    CONSTRAINT bridge_artist_genre_uq UNIQUE (artist_id, genre)
+);
+ 
+CREATE INDEX idx_bridge_artist_genre_genre ON bridge_artist_genre(genre);
