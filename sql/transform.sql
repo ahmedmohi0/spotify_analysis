@@ -58,7 +58,7 @@ SELECT DISTINCT ON (track_id)
     track_number, disc_number, artist_id, all_artist_names, album_id,
     danceability, energy, valence, tempo, loudness, acousticness,
     instrumentalness, speechiness, liveness, key, mode,
-    track_tags[1]
+    coalesce(lower(trim(track_tags[1])),lower(trim(artist_tags[1]))) -- take the first tag as the track genre with consistent casing
 FROM staging_listening_history
 ORDER BY track_id
 ON CONFLICT (track_id) DO NOTHING;
@@ -74,11 +74,11 @@ ON CONFLICT (artist_id, genre) DO NOTHING;
 INSERT INTO fact_listening_history (
     date_key, track_id, artist_id, album_id,
     played_at, ms_played, shuffled, skipped, reason_start, reason_end, offline
+   
 )
 SELECT
     to_char(played_at, 'YYYYMMDD')::int,
     track_id, artist_id, album_id,
     played_at, ms_played, shuffled, skipped, reason_start, reason_end, offline
 FROM staging_listening_history;
-
 
