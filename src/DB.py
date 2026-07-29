@@ -3,11 +3,12 @@ from contextlib import contextmanager
 import psycopg
 from src.config import DB_CONFIG
 from src.logger import get_logger, setup_logging
- 
+from sqlalchemy import URL,create_engine,text
+import pandas as pd
 setup_logging()
 logger = get_logger(__name__)
  
- 
+_engine = None
 @contextmanager
 def get_connection():
     """
@@ -67,3 +68,54 @@ def bulk_insert(table: str, columns: list[str], rows: list[tuple]) -> None:
                     copy.write_row(row)
  
     logger.info(f"Inserted {len(rows)} rows into {table} via COPY.")
+
+
+def get_engine():
+    global _engine
+    if _engine is None:
+        logger.debug("No engine found - creating new one")
+        required = ["host", "port", "dbname", "user", "password"]
+        missing = [k for k in required if k not in DB_CONFIG]
+        if missing:
+            logger.critical(f"missing config keys: {missing}")
+            raise EnvironmentError(f"missing config keys: {missing}")
+
+        url = URL.create(
+            drivername="postgresql+psycopg",
+            username=DB_CONFIG["user"],
+            password=DB_CONFIG["password"],
+            host=DB_CONFIG["host"],
+            port=DB_CONFIG["port"],
+            database=DB_CONFIG["dbname"],
+        )
+        try:
+            _engine = create_engine(url, echo=False)
+            logger.info("Database engine initialized")
+        except Exception as e:
+            logger.critical(f"failed to create database engine: {e}")
+            raise
+    else:
+        logger.debug("using existing engine")
+
+    return _engine
+
+
+def query(sql: str, params: dict = None) -> pd.DataFrame:
+    logger.debug(f"Executing query: {sql[:120].strip()}{'...' if len(sql) > 120 else ''}")
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            result = conn.execute(text(sql), params or {})
+            df = pd.DataFrame(result.fetchall(), columns=result.keys())
+        if df.empty:
+            logger.warning("Query returned 0 rows — verify filters are correct.")
+        else:
+            logger.debug(f"Query returned {len(df):,} rows.")
+        return df
+    except Exception as e:
+        logger.error(f"Query failed: {e}")
+        raise
+
+
+def query_table(table_name: str) -> pd.DataFrame:
+    return pd.read_sql_table(table_name, con=get_engine())
