@@ -89,6 +89,21 @@ create table dim_album
     album_total_tracks smallint
 );
 
+drop table if exists dim_genre cascade;
+create table dim_genre(
+
+    genre_id SERIAL primary key,
+    genre_name text
+)
+
+drop table if exists bridge_track_genre cascade;
+CREATE table bridge_track_genre(
+
+    genre_id BIGINT NOT NULL REFERENCES dim_genre(genre_id),
+    track_id text NOT NULL REFERENCES dim_track(track_id),
+    CONSTRAINT bridge_track_genre_uq UNIQUE (track_id, genre_id)
+);
+
 drop table if exists dim_track cascade;
 create table dim_track
 (
@@ -100,7 +115,6 @@ create table dim_track
     explicit boolean ,
     track_number smallint ,
     disc_number smallint ,
-    track_genre text,
     danceability numeric(6,4),
     energy numeric(6,4),
     valence numeric(6,4),
@@ -145,8 +159,8 @@ CREATE INDEX idx_dim_track_genre  ON dim_track(track_genre);
  
 CREATE TABLE bridge_artist_genre (
     artist_id        TEXT NOT NULL REFERENCES dim_artist(artist_id),
-    genre            TEXT NOT NULL,
+    genre            text NOT NULL
     CONSTRAINT bridge_artist_genre_uq UNIQUE (artist_id, genre)
 );
  
-CREATE INDEX idx_bridge_artist_genre_genre ON bridge_artist_genre(genre);
+
