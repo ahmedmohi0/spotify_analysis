@@ -51,14 +51,14 @@ INSERT INTO dim_track (
     track_id, track_uri, track_name, duration_ms, popularity, explicit,
     track_number, disc_number, artist_id, all_artist_names, album_id,
     danceability, energy, valence, tempo, loudness, acousticness,
-    instrumentalness, speechiness, liveness, key, mode, track_genre
+    instrumentalness, speechiness, liveness, key, mode
 )
 SELECT DISTINCT ON (track_id)
     track_id, track_uri, coalesce(track_name, 'Unknown') AS track_name, duration_ms, popularity, explicit,
     track_number, disc_number, artist_id, all_artist_names, album_id,
     danceability, energy, valence, tempo, loudness, acousticness,
-    instrumentalness, speechiness, liveness, key, mode,
-    coalesce(lower(trim(track_tags[1])),lower(trim(artist_tags[1]))) -- take the first tag as the track genre with consistent casing
+    instrumentalness, speechiness, liveness, key, mode
+    
 FROM staging_listening_history
 ORDER BY track_id
 ON CONFLICT (track_id) DO NOTHING;
@@ -82,3 +82,118 @@ SELECT
     played_at, ms_played, shuffled, skipped, reason_start, reason_end, offline
 FROM staging_listening_history;
 
+
+CREATE TABLE genre_keywords ( keyword TEXT PRIMARY KEY ); INSERT INTO genre_keywords (keyword) VALUES
+ ('metal'), ('rock'), ('pop'), ('hip hop'), ('hip-hop'), ('rap'), ('trap'), ('punk'), ('grunge'), ('shoegaze'), ('emo'), ('hardcore'),
+  ('metalcore'), ('deathcore'), ('electronic'), ('electronica'), ('house'), ('techno'), ('trance'), ('dubstep'), ('ambient'), ('drum and bass'),
+   ('dnb'), ('indie'), ('alternative'), ('folk'), ('country'), ('blues'), ('jazz'), ('classical'), ('soul'), ('funk'), ('reggae'), ('latin'), ('rnb'), 
+   ('phonk'); 
+CREATE TABLE invalid_tags ( tag_name TEXT PRIMARY KEY ); INSERT INTO invalid_tags VALUES ('favorite'), ('favorites'), ('seen live'), ('live'), 
+('awesome'), ('good'), ('love'), ('sad'), ('happy'), ('spotify'), ('lastfm'), ('male vocalists'), ('female vocalists'), ('american'), ('british'), 
+('english'), ('german'), ('japanese'), ('swedish'), ('french'), ('under 2000 listeners'), ('under 1000 listeners'), ('under 500 listeners'), ('under 100 listeners');
+
+
+
+
+CREATE TABLE valid_artist_tags AS
+SELECT DISTINCT
+    s.artist_id,
+    LOWER(TRIM(tag)) AS genre
+FROM staging_listening_history s
+CROSS JOIN LATERAL unnest(s.artist_tags) AS tag
+WHERE
+    s.artist_id IS NOT NULL
+    AND tag IS NOT NULL
+    AND TRIM(tag) <> ''
+
+    AND EXISTS (
+        SELECT 1
+        FROM genre_keywords g
+        WHERE LOWER(tag) LIKE '%' || g.keyword || '%'
+    )
+
+    AND NOT EXISTS (
+        SELECT 1
+        FROM invalid_tags b
+        WHERE LOWER(tag) = LOWER(b.tag_name)
+    );
+
+
+
+
+CREATE TABLE artist_primary_genre AS
+SELECT DISTINCT ON (artist_id)
+    artist_id,
+    genre
+FROM valid_artist_tags
+ORDER BY
+    artist_id,
+    LENGTH(genre),
+    genre;
+
+
+
+CREATE TABLE valid_track_tags AS
+SELECT DISTINCT
+    s.track_id,
+    LOWER(TRIM(tag)) AS genre
+FROM staging_listening_history s
+CROSS JOIN LATERAL unnest(s.track_tags) AS tag
+WHERE
+    s.track_id IS NOT NULL
+    AND tag IS NOT NULL
+    AND TRIM(tag) <> ''
+
+    AND EXISTS (
+        SELECT 1
+        FROM genre_keywords g
+        WHERE LOWER(tag) LIKE '%' || g.keyword || '%'
+    )
+
+    AND NOT EXISTS (
+        SELECT 1
+        FROM invalid_tags b
+        WHERE LOWER(tag) = LOWER(b.tag_name)
+    );
+
+
+
+
+CREATE TABLE track_primary_genre AS
+SELECT DISTINCT ON (track_id)
+    track_id,
+    genre
+FROM valid_track_tags
+ORDER BY
+    track_id,
+    LENGTH(genre),
+    genre;
+
+
+INSERT INTO dim_genre (genre_name)
+SELECT DISTINCT genre
+FROM (
+    SELECT genre FROM track_primary_genre
+    UNION
+    SELECT genre FROM artist_primary_genre
+) g
+WHERE genre IS NOT NULL
+
+INSERT INTO bridge_track_genre (
+    track_id,
+    genre_id
+)
+SELECT
+    tp.track_id,
+    g.genre_id
+FROM track_primary_genre tp
+JOIN dim_genre g
+    ON g.genre_name = tp.genre
+ON CONFLICT (track_id, genre_id) DO NOTHING;
+
+DROP TABLE IF EXISTS valid_artist_tags;
+DROP TABLE IF EXISTS artist_primary_genre;
+DROP TABLE IF EXISTS track_primary_genre
+DROP TABLE IF EXISTS valid_track_tags;
+DROP TABLE IF EXISTS invalid_tags;
+DROP TABLE IF EXISTS genre_keywords;
