@@ -7,14 +7,27 @@
 --FROM staging_listening_history
 --WHERE album_name IS NULL;
 
+/*
+the above queries returned three rows where artist name is null and one where album name is null they were played 35 times
+3 tracks (35 total plays) have no artist_name/track_name from Spotify's
+API (likely local files, verified not a merge bug).
+Kept rather than dropped, so total listening-time/play-count stats stay accurate 
+*/
 
---the above queries returned three rows where artist name is null and one where album name is null they were played 35 times
--- 3 tracks (35 total plays) have no artist_name/track_name from Spotify's
--- API (likely local files, verified not a merge bug).
--- Kept rather than dropped, so total listening-time/play-count stats stay accurate 
+
+/*
+after beggining notebook1 I noticed problems with the genre column originally I decided
+to get missing track genre from artist genre but that presented very messy data
+so I had to modify the schema by adding dedicated genre table and bridge tables to
+tie the genres back to the tracks/artist
+I also went with my original idea but with added steps to make the artist tags 
+more clean and trustworthy
+*/
 
 ---Helper Tables-------------------------------------------------------------------------------------------------------------
 --First two tables are made by giving ai a csv file resulted from quering my old schema.
+
+
 
 CREATE TABLE genre_keywords ( keyword TEXT PRIMARY KEY ); INSERT INTO genre_keywords (keyword) VALUES
  ('metal'), ('rock'), ('pop'), ('hip hop'), ('hip-hop'), ('rap'), ('trap'), ('punk'), ('grunge'), ('shoegaze'), ('emo'), ('hardcore'),
@@ -63,7 +76,6 @@ ORDER BY
     artist_id,
     LENGTH(genre),
     genre;
-
 
 
 CREATE TABLE valid_track_tags AS
