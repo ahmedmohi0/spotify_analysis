@@ -96,13 +96,6 @@ create table dim_genre(
     genre_name text
 )
 
-drop table if exists bridge_track_genre cascade;
-CREATE table bridge_track_genre(
-
-    genre_id BIGINT NOT NULL REFERENCES dim_genre(genre_id),
-    track_id text NOT NULL REFERENCES dim_track(track_id),
-    CONSTRAINT bridge_track_genre_uq UNIQUE (track_id, genre_id)
-);
 
 drop table if exists dim_track cascade;
 create table dim_track
@@ -145,9 +138,31 @@ create table fact_listening_history
     skipped          BOOLEAN,
     reason_start     TEXT,
     reason_end       TEXT,
-    offline          BOOLEAN
+    offline          BOOLEAN,
+    genre_id         INT REFERENCES dim_genre(genre_id)
 );
  
+drop table if exists bridge_track_genre cascade;
+CREATE table bridge_track_genre(
+
+    genre_id INT NOT NULL REFERENCES dim_genre(genre_id),
+    track_id text NOT NULL REFERENCES dim_track(track_id),
+    CONSTRAINT bridge_track_genre_uq UNIQUE (track_id, genre_id)
+);
+
+
+
+ DROP TABLE IF EXISTS bridge_artist_genre;
+
+CREATE TABLE bridge_artist_genre (
+    artist_id TEXT NOT NULL REFERENCES dim_artist(artist_id),
+    genre_id  INT NOT NULL REFERENCES dim_genre(genre_id),
+
+    CONSTRAINT bridge_artist_genre_pk
+        PRIMARY KEY (artist_id, genre_id)
+);
+
+
 CREATE INDEX idx_fact_date_key    ON fact_listening_history(date_key);
 CREATE INDEX idx_fact_track_id    ON fact_listening_history(track_id);
 CREATE INDEX idx_fact_artist_id   ON fact_listening_history(artist_id);
@@ -157,10 +172,5 @@ CREATE INDEX idx_dim_track_genre  ON dim_track(track_genre);
  
  DROP TABLE IF EXISTS bridge_artist_genre CASCADE;
  
-CREATE TABLE bridge_artist_genre (
-    artist_id        TEXT NOT NULL REFERENCES dim_artist(artist_id),
-    genre            text NOT NULL
-    CONSTRAINT bridge_artist_genre_uq UNIQUE (artist_id, genre)
-);
- 
+
 
